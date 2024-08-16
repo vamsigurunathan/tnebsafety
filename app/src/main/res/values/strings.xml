@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">tnebsafety</string>
+    <string-array name="userrole">
+        <item>SELECT ROLE</item>
+        <item>Foreman</item>
+        <item>Line Inspector</item>
+        <item>Wireman</item>
+        <item>Contract Staff</item>
+        <item>Others</item>
+        <!-- Add more items as needed -->
+    </string-array>
+    <string name="username">தங்களது/மேற்பார்வை புரிபவர் பெயர்</string>
+    <string name="userrole">தங்களது/மேற்பார்வை புரிபவர் பதவி பெயர்</string>
+    <string name="circlename">தாங்கள் பணிபுரியும் வட்டம்</string>
+    <string name="sectionname">தங்களது பிரிவு அலுவலகம் </string>
+    <string name="staffname">வேலை செய்பவரின் பெயர் </string>
+    <string name="workdesc">வேலையின் விபரம் </string>
+    <string name="photo1">மின் பாதையில் போடப்பட்ட எர்த் ராடின் புகைப்படம்</string>
+    <string name="photo2">பூமியுடன் இணைக்கப்பட்ட எர்த் ராடின் புகைப்படம்</string>
+    <string name="copyright_notice">Copyright \u00A9 TANGEDCO</string>
+</resources>
