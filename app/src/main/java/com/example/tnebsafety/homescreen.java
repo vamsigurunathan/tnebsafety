@@ -29,6 +29,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
@@ -134,6 +135,7 @@ private String Useridvalue;
     private String Userrolefortext;
     private String Cirnamefortext;
     private String Secnamefortext;
+    private boolean isCapture1Clicked = false;
     private Spinner spinnerselect;
     private String latvalueselect;
     private String lngvalueselect;
@@ -141,7 +143,7 @@ private String Useridvalue;
     private ProgressBar progressBar;
     private int incrementalno=0;
     private Button btncapture3;
-    private  String imageFileName;
+    private  String imageFileNametemp;
     private static final int REQUEST_IMAGE_CAPTURE = 1;
     private Uri photoUri;
     private static final int CREATE_FILE_REQUEST_CODE = 1;
@@ -192,11 +194,7 @@ private String Useridvalue;
             spinner1.setAdapter(adaptercircle);
             String[] defaultItem = {"SELECT SECTION NAME"};
             ArrayAdapter<String> adaptersec = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, defaultItem);
-
-// Set the dropdown view resource to use (optional)
             adaptersec.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-
-// Set the adapter to the Spinner
             spinner2.setAdapter(adaptersec);
 
             spinner1.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
@@ -255,26 +253,19 @@ private String Useridvalue;
                     longitudevalue = Double.toString(longitude);
                     accuracy = location.getAccuracy();
                     accuracyvalue = Float.toString(accuracy);
-                    // coordinatesTextView.setText("Latitude: " + latitude + "\nLongitude: " + longitude);
-
                 }
 
             }
 
         };
         btncapture1.setOnClickListener(v -> {
-            // Perform logout actions here
-            // For example, navigating back to MainActivity
-            requestCameraPermission();
-            //openCamera();
-            // sendDataToServer(receivedValue,latitudevalue,longitudevalue,accuracyvalue);
+            isCapture1Clicked = true;
+            capturePhoto();
         });
+
         btncapture2.setOnClickListener(v -> {
-            // Perform logout actions here
-            // For example, navigating back to MainActivity
-            requestCameraPermission();
-            //openCamera();
-            // sendDataToServer(receivedValue,latitudevalue,longitudevalue,accuracyvalue);
+            isCapture1Clicked = false;
+            capturePhoto();
         });
 
         btncapture3.setOnClickListener(v -> {
@@ -283,9 +274,10 @@ private String Useridvalue;
                 userrolevalue = (String) spinnerselect.getSelectedItem();
                 circlenamevalue = (String) spinner1.getSelectedItem();
                 sectionnamevalue = (String) spinner2.getSelectedItem();
-
                 staffnamevalue = staffname.getText().toString();
+                staffnamevalue = staffnamevalue.replaceAll("[^a-zA-Z0-9]", " ");
                 workdescriptionvalue = workdesc.getText().toString();
+                workdescriptionvalue = workdescriptionvalue.replaceAll("[^a-zA-Z0-9]", " ");
                 if (usernamevalue.isEmpty()) {
                     String message = "User Name must be entered";
                     showToast(message);
@@ -305,8 +297,8 @@ private String Useridvalue;
                     String message = "Both pictures need to be captured";
                     showToast(message);
                 }
-                else if(latvalueselect.isEmpty() || lngvalueselect.isEmpty() ) {
-                    String message = "LOCATION FEATURE NOT TURNED ON";
+                else if(latvalueselect.isEmpty() || lngvalueselect.isEmpty() || latvalueselect==null || lngvalueselect==null  ) {
+                    String message = "GPS LOCATION  NOT CAPTURED";
                     showToast(message);
                 }
                 else {
@@ -317,7 +309,9 @@ private String Useridvalue;
             }
             else {
                 staffnamevalue = staffname.getText().toString();
+                staffnamevalue = staffnamevalue.replaceAll("[^a-zA-Z0-9]", " ");
                 workdescriptionvalue = workdesc.getText().toString();
+                workdescriptionvalue = workdescriptionvalue.replaceAll("[^a-zA-Z0-9]", " ");
                 savepicturestolocal2(capturedPhotos.get(0),capturedPhotos.get(1));
             }
         });
@@ -345,65 +339,121 @@ private String Useridvalue;
     }
     private void capturePhoto() {
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-       // if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-          setupPhotoFile();
-            takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
-            cameraLauncher.launch(takePictureIntent);
-        //} else {
-          //  Toast.makeText(this, "Camera app not found", Toast.LENGTH_SHORT).show();
-       // }
+        setupPhotoFile();
+        takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+        cameraLauncher.launch(takePictureIntent);
+
     }
     private void setupPhotoFile() {
-        incrementalno=incrementalno+1;
-        imageFileName = "test_" + incrementalno;
+        if (isCapture1Clicked) {
+            // Set filename and directory for btncapture1
+            imageFileNametemp = "capture1";
+        } else {
+            // Set filename and directory for btncapture2
+            imageFileNametemp = "capture2";
+        }
         File storageDir = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "tempsafety");
-
         if (!storageDir.exists()) {
             storageDir.mkdirs();
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            File storagefile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "tempsafety/"+imageFileNametemp+".jpg");
+            deleteSpecificFile(storagefile);
+        } else {
+            // For older Android versions, manually delete the file
+            File photoFile = new File(storageDir, imageFileNametemp);
+            if (photoFile.exists()) {
+                photoFile.delete();
+            }
+        }
         ContentValues values = new ContentValues();
-        values.put(MediaStore.Images.Media.DISPLAY_NAME, imageFileName + ".jpg");
+        values.put(MediaStore.Images.Media.DISPLAY_NAME, imageFileNametemp + ".jpg");
         values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
         values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/tempsafety");
-        showToast(imageFileName);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            Uri externalContentUri = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
-            photoUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-        } else {
-            File photoFile = new File(storageDir, imageFileName + ".jpg");
-            photoUri = FileProvider.getUriForFile(this, "com.example.android.fileprovider", photoFile);
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                Uri externalContentUri = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+                photoUri = getContentResolver().insert(externalContentUri, values);
+                if (photoUri == null) {
+                    showToast("Error: Could not create MediaStore entry.");
+                    Log.e("FileCreation", "MediaStore insert failed: URI is null");
+                    return;
+                }
+            } else {
+
+               File photoFile = new File(storageDir, imageFileNametemp + ".jpg");
+                if (!photoFile.exists()) {
+                    if (!photoFile.createNewFile()) {
+                        showToast("Error: Could not create file.");
+                        Log.e("FileCreation", "File creation failed.");
+                        return;
+                    }
+                }
+                photoUri = FileProvider.getUriForFile(this, "com.example.android.fileprovider", photoFile);
+            }
+        } catch (Exception e) {
+            showToast("An error occurred: " + e.getMessage());
+            Log.e("FileCreation", "Exception occurred", e);
         }
     }
     private void handleCameraResult() {
-        File storageDir2 = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_PICTURES), "tempsafety/" + imageFileName + ".jpg");
+        File storageDir2 = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "tempsafety/");
 
         if (storageDir2.exists()) {
-            try {
-                // Use the photoUri directly to create a Bitmap
-                InputStream inputStream = getContentResolver().openInputStream(photoUri);
-                Bitmap photo = BitmapFactory.decodeStream(inputStream);
+            File imageFile;
 
-                if (photo != null) {
-                    photo = rotateBitmap(photo, 90);
-                    capturedPhotos.add(photo);
+            if (isCapture1Clicked) {
+                // If btncapture1 was clicked, read capture1.jpg
+                imageFile = new File(storageDir2, "capture1.jpg");
+            } else {
+                // If btncapture2 was clicked, read capture2.jpg
+                imageFile = new File(storageDir2, "capture2.jpg");
+            }
 
-                    photoImageView.setImageBitmap(capturedPhotos.get(0));
+            if (imageFile.exists()) {
+                try {
+                    InputStream inputStream = new FileInputStream(imageFile);
+                    Bitmap photo = BitmapFactory.decodeStream(inputStream);
 
-                    if (capturedPhotos.size() >= 2) {
-                        photoImageView2.setImageBitmap(capturedPhotos.get(1));
+                    if (photo != null) {
+                        // Rotate the image if necessary
+                        photo = rotateBitmap(photo, 90);
+                        if (isCapture1Clicked) {
+                            // Replace the 0th element for capture1.jpg
+                            if (capturedPhotos.size() > 0) {
+                                capturedPhotos.set(0, photo);
+                            } else {
+                                capturedPhotos.add(photo);  // Add if the list is empty
+                            }
+                            photoImageView.setImageBitmap(capturedPhotos.get(0));
+                        } else {
+                            // Replace the 1st element for capture2.jpg
+                            if (capturedPhotos.size() > 1) {
+                                capturedPhotos.set(1, photo);
+                            } else if (capturedPhotos.size() == 1) {
+                                capturedPhotos.add(photo);  // Add the second image if only one exists
+                            } else {
+                                capturedPhotos.add(null);  // Add a placeholder for the first image
+                                capturedPhotos.add(photo);  // Add the second image
+                            }
+                            photoImageView2.setImageBitmap(capturedPhotos.get(1));
+                        }
+                        // Set additional data
                         latvalueselect = String.valueOf(latitudevalue);
                         lngvalueselect = String.valueOf(longitudevalue);
                         accvalueselect = String.valueOf(accuracyvalue);
                         long timestamp = System.currentTimeMillis();
                         timestampstring = String.valueOf(timestamp);
                     }
+                } catch (FileNotFoundException e) {
+                    Toast.makeText(this, "File not found: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 }
-            } catch (FileNotFoundException e) {
-                Toast.makeText(this, "File not found: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "File does not exist: " + imageFile.getName(), Toast.LENGTH_SHORT).show();
             }
         } else {
-            Toast.makeText(this, "File does not exist", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Directory does not exist", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -417,10 +467,8 @@ private String Useridvalue;
 
             String line;
             while ((line = reader.readLine()) != null) {
-                // Assuming CSV values are separated by commas
                 String[] parts = line.split(",");
                 if (parts.length > columnIndex) {
-                    // Extract the value from the specified column index
                     String columnValue = parts[columnIndex].trim();
                     values.add(columnValue);
                 }
@@ -481,84 +529,7 @@ private String Useridvalue;
         return values;
     }
 
-    private void openCamera() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST_CODE);
-        } else {
-            Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-            incrementalno=incrementalno+1;
 
-            // Permission already granted, proceed with camera intent
-            imageFileName = "test_" + incrementalno ;
-            File storageDir = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "tempsafety");
-
-            if (!storageDir.exists()) {
-                storageDir.mkdirs();
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-                intent.setData(Uri.parse("package:" + getPackageName()));
-                startActivity(intent);
-            }
-            if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-                ContentValues values = new ContentValues();
-                values.put(MediaStore.Images.Media.DISPLAY_NAME, imageFileName + ".jpg");
-                values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-                values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/tempsafety");
-
-                // For Android 10 and above, use MediaStore API to create the content URI
-                Uri photoFile;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    Uri externalContentUri = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
-                    photoFile = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-
-                } else {
-                    // For versions below Android 10, use the file URI
-                    File photoFile2 = new File(storageDir, imageFileName + ".jpg");
-                    photoFile = Uri.fromFile(photoFile2);
-                }
-
-
-                    takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoFile);
-                    cameraLauncher.launch(takePictureIntent);
-
-
-            }
-        }
-    }
-
-    private File createImageFile() {
-//        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-        String imageFileName = "test_" + incrementalno ;
-        File storageDir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_PICTURES), "tempsafety");
-
-        if (!storageDir.exists()) {
-            storageDir.mkdirs();
-        }
-
-/*
-        try {
-
-            showToast("TEST"+String.valueOf(incrementalno));
-          /*File tempfile= File.createTempFile(
-                    imageFileName,
-                    ".jpg",
-                    storageDir
-            );
-          if ()
-          showToast("TESTING"+String.valueOf(tempfile));
-
-
-//return imageUri;
-        } catch (IOException e) {
-            e.printStackTrace();
-            showToast("Error creating temporary file: " + e.getMessage());
-            return null;
-        }
-*/
-        return null;
-    }
     private void movepictures(String usname,String urvalue,String circlevalue,String sectionvalue,String staffvalue,String staffwork,Bitmap bitmapphoto,Bitmap bitmapphoto2,String timevalue,String latval,String lngval,String accval,String Userid){
         try {
             btncapture3.setEnabled(false);
@@ -579,8 +550,6 @@ private String Useridvalue;
             MultipartBody.Part imagePart1 = MultipartBody.Part.createFormData("image2", imagefilename2, requestBody1);
             retrofit = RetrofitSingleton.getRetrofitInstance();
             Passvaluesstore apiService = retrofit.create(Passvaluesstore.class);
-            //    Nscvalidation apiResponse = new Nscvalidation(param1, param2, param3, param4, param5, param6, param7, param8, param9,param10,param11,param12,param13);
-            // Call<Nscvalidation> call = apiService.sendFormData(param1, param2, param3, param4, param5, param6, param7, param8, param9,param10,param11,param12,param13);
             Call<ResponseBody> call = apiService.uploadImage(imagePart,imagePart1,requestBody,usname,urvalue, circlevalue, sectionvalue, staffvalue, staffwork, timevalue, latval, lngval,accval,Userid);
             call.enqueue(new Callback<ResponseBody>() {
                 @Override
@@ -599,22 +568,14 @@ private String Useridvalue;
                              Cirnamefortext=Responseresults.getCirclename();
                              Secnamefortext=Responseresults.getSectionname();
                              Usermaintvalue=Responseresults.getUsermaintvalue();
-    //                         showToast(messagevalue);
-
                                 if (!Useridfortext.equals("0")) {
                                     savefiletolocal(messagevalue, capturedPhotos.get(0), capturedPhotos.get(1));
                                 } else if (Useridfortext.equals("0") && Usermaintvalue.equals("1")) {
-
                                     showToast("PHOTOGRAPH uploaded SUCCESSFULLY");
                                     savepicturestolocal(capturedPhotos.get(0), capturedPhotos.get(1));
                                     File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + "/tempsafety/");
-
-                                    // Check if the directory exists
                                     if (directory.exists() && directory.isDirectory()) {
-                                        // Get all files in the directory
                                         File[] files = directory.listFiles();
-
-                                        // Delete each file in the directory
                                         if (files != null) {
                                             for (File file : files) {
                                                 if (file.isFile()) {
@@ -647,11 +608,6 @@ private String Useridvalue;
 
                 }
             });
-
-
-
-
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -703,21 +659,11 @@ private String Useridvalue;
             Gson gson = new Gson();
             String jsonString = gson.toJson(myData);
             String state = Environment.getExternalStorageState();
-
-            //String jsonString = "your_json_data"; // Replace this with your actual JSON data
-
-            // Folder name and file name
             String folderName = "MyFolder";
             String fileName = "data.txt";
-
-            // Check if external storage is available for writing
             if (isExternalStorageWritable()) {
-                // Get the directory for the specified folder
-     //           File folder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + "/TNEBSAFETY");
-File folder=createFolderInDocuments(this,folderName);
+                File folder=createFolderInDocuments(this,folderName);
                 String successmsg2="Folder created: " + folder.getAbsolutePath();
-
-                // Create the folder if it doesn't exist
                 if (!folder.exists()) {
                     if (folder.mkdirs()) {
                         String successmsg="Folder created: " + folder.getAbsolutePath();
@@ -741,9 +687,6 @@ File folder=createFolderInDocuments(this,folderName);
                 } catch (IOException e) {
                     e.printStackTrace();
                     Toast.makeText(this, "User not created", Toast.LENGTH_SHORT).show();
-//                    String errorMessage = "Error saving JSON data: " + e.getMessage();
-  //                  Log.e(TAG, errorMessage);
-    //                showToast(errorMessage);
                 }
             } else {
                 Toast.makeText(this, "External storage permission denied", Toast.LENGTH_SHORT).show();
@@ -811,6 +754,8 @@ File folder=createFolderInDocuments(this,folderName);
 
                 // Show a toast message indicating the image is saved
                 Toast.makeText(homescreen.this, "PHOTOGRAPH 2 saved ", Toast.LENGTH_LONG).show();
+                File folder = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "tempsafety");
+                deleteAllFilesInFolder(folder);
                 Intent intent2 = new Intent(homescreen.this, MainActivity.class);
                 startActivity(intent2);
             } catch (IOException e) {
@@ -986,18 +931,33 @@ private void savepicturestolocal(Bitmap photo1,Bitmap photo2) {
             directory1.mkdirs();
         }
 
-        // Generate a unique filename for the image
-        String fileName1 = staffnamevalue+"_"+workdescriptionvalue+"_"+timestampstring+"_"+dayvalue+"_"+monthvalue+"_"+year+"_"+hour+minute+"_01"+".jpg";
-        File file5 = new File(directory, fileName1);
-        String fileName2 = staffnamevalue+"_"+workdescriptionvalue+"_"+timestampstring+"_"+dayvalue+"_"+monthvalue+"_"+year+"_"+hour+minute+"_02"+".jpg";
-        File file2 = new File(directory, fileName2);
+        File file5;
+        File file2;
+        File file3;
+        File file4 ;
+        String fileName1=null;
+        String fileName2=null;
+        String fileName3=null;
+        String fileName4=null;
 
-        String fileName3 = usernamevalue+"_"+userrolevalue+"_"+circlenamevalue+"_"+sectionnamevalue+"_"+staffnamevalue+"_"+workdescriptionvalue+"_"+timestampstring+"_"+latvalueselect+"_"+ lngvalueselect+"_"+ accvalueselect+"_"+ Useridvalue+"_01"+".jpg";
-        File file3 = new File(directory1, fileName3);
-        String fileName4 = usernamevalue+"_"+userrolevalue+"_"+circlenamevalue+"_"+sectionnamevalue+"_"+staffnamevalue+"_"+workdescriptionvalue+"_"+timestampstring+"_"+latvalueselect+"_"+ lngvalueselect+"_"+ accvalueselect+"_"+ Useridvalue+"_02"+".jpg";
-        File file4 = new File(directory1, fileName4);
+if(latvalueselect.isEmpty() || lngvalueselect.isEmpty() || latvalueselect ==null || lngvalueselect==null) {
+ showToast("Latitude and longitude not captured.Retake photos");   // Generate a unique filename for the image
+} else if (usernamevalue.isEmpty() || usernamevalue.equals("0")) {
+    showToast("First time upload must be made through internet only. From second time offline capture");
+}
+else {
+    fileName1 = staffnamevalue + "_" + workdescriptionvalue + "_" + timestampstring + "_" + dayvalue + "_" + monthvalue + "_" + year + "_" + hour + minute + "_01" + ".jpg";
 
-        try {
+    fileName2 = staffnamevalue + "_" + workdescriptionvalue + "_" + timestampstring + "_" + dayvalue + "_" + monthvalue + "_" + year + "_" + hour + minute + "_02" + ".jpg";
+
+    fileName3 = usernamevalue + "_" + userrolevalue + "_" + circlenamevalue + "_" + sectionnamevalue + "_" + staffnamevalue + "_" + workdescriptionvalue + "_" + timestampstring + "_" + latvalueselect + "_" + lngvalueselect + "_" + accvalueselect + "_" + Useridvalue + "_01" + ".jpg";
+
+    fileName4 = usernamevalue + "_" + userrolevalue + "_" + circlenamevalue + "_" + sectionnamevalue + "_" + staffnamevalue + "_" + workdescriptionvalue + "_" + timestampstring + "_" + latvalueselect + "_" + lngvalueselect + "_" + accvalueselect + "_" + Useridvalue + "_02" + ".jpg";
+
+
+    try {
+        if (fileName1 != null) {
+            file5 = new File(directory, fileName1);
             // Save the bitmap to the file
             FileOutputStream outputStream = new FileOutputStream(file5);
             bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream);
@@ -1005,13 +965,20 @@ private void savepicturestolocal(Bitmap photo1,Bitmap photo2) {
 
             // Show a toast message indicating the image is saved
             Toast.makeText(homescreen.this, "PHOTOGRAPH 1 saved ", Toast.LENGTH_LONG).show();
-        } catch (IOException e) {
-            e.printStackTrace();
-            // Show a toast message if there's an error saving the image
-            Toast.makeText(homescreen.this, "Error saving image", Toast.LENGTH_LONG).show();
+        } else {
+            showToast("The parameters are not set correct.Retake photo");
         }
+    } catch (IOException e) {
+        e.printStackTrace();
+        // Show a toast message if there's an error saving the image
+        Toast.makeText(homescreen.this, "Error saving image", Toast.LENGTH_LONG).show();
+    }
 
-        try {
+    try {
+        if (fileName3 != null) {
+
+            file3 = new File(directory1, fileName3);
+
             // Save the bitmap to the file
             FileOutputStream outputStream3 = new FileOutputStream(file3);
             bitmap.compress(Bitmap.CompressFormat.JPEG, 20, outputStream3);
@@ -1019,12 +986,20 @@ private void savepicturestolocal(Bitmap photo1,Bitmap photo2) {
 
             // Show a toast message indicating the image is saved
             Toast.makeText(homescreen.this, "PHOTOGRAPH 1 pending image saved ", Toast.LENGTH_LONG).show();
-        } catch (IOException e) {
-            e.printStackTrace();
-            // Show a toast message if there's an error saving the image
-            Toast.makeText(homescreen.this, "Error saving pending image", Toast.LENGTH_LONG).show();
+        } else {
+            showToast("The parameters are not set correct.Retake photo");
         }
-        try {
+    } catch (IOException e) {
+        e.printStackTrace();
+        // Show a toast message if there's an error saving the image
+        Toast.makeText(homescreen.this, "Error saving pending image", Toast.LENGTH_LONG).show();
+    }
+    try {
+
+        if (fileName4 != null) {
+
+            file4 = new File(directory1, fileName4);
+
             // Save the bitmap to the file
             FileOutputStream outputStream4 = new FileOutputStream(file4);
             bitmap2.compress(Bitmap.CompressFormat.JPEG, 20, outputStream4);
@@ -1032,27 +1007,44 @@ private void savepicturestolocal(Bitmap photo1,Bitmap photo2) {
 
             // Show a toast message indicating the image is saved
             Toast.makeText(homescreen.this, "PHOTOGRAPH 2 pending image saved ", Toast.LENGTH_LONG).show();
-        } catch (IOException e) {
-            e.printStackTrace();
-            // Show a toast message if there's an error saving the image
-            Toast.makeText(homescreen.this, "Error saving pending image", Toast.LENGTH_LONG).show();
         }
+        else{
+            showToast("The parameters are not set correct.Retake photo");
+        }
+        } catch (IOException e) {
+        e.printStackTrace();
+        // Show a toast message if there's an error saving the image
+        Toast.makeText(homescreen.this, "Error saving pending image", Toast.LENGTH_LONG).show();
+    }
 
-        try {
+    try {
+        if (fileName2 != null) {
+
+            file2 = new File(directory, fileName2);
+
             // Save the bitmap to the file
             FileOutputStream outputStream2 = new FileOutputStream(file2);
             bitmap2.compress(Bitmap.CompressFormat.JPEG, 80, outputStream2);
             outputStream2.close();
 
-            // Show a toast message indicating the image is saved
             Toast.makeText(homescreen.this, "PHOTOGRAPH 2 saved ", Toast.LENGTH_LONG).show();
+            File folder = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "tempsafety");
+            deleteAllFilesInFolder(folder);
             Intent intent2 = new Intent(homescreen.this, MainActivity.class);
-            startActivity(intent2);
-        } catch (IOException e) {
-            e.printStackTrace();
-            // Show a toast message if there's an error saving the image
-            Toast.makeText(homescreen.this, "Error saving image", Toast.LENGTH_LONG).show();
+           startActivity(intent2);
+
+
+            closeApp();
         }
+        else {
+            showToast("The parameters are not set correct.Retake photo");
+        }
+    } catch (IOException e) {
+        e.printStackTrace();
+        // Show a toast message if there's an error saving the image
+        Toast.makeText(homescreen.this, "Error saving image", Toast.LENGTH_LONG).show();
+    }
+}
         File directory2 = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + "/tempsafety/");
 
         // Check if the directory exists
@@ -1069,6 +1061,7 @@ private void savepicturestolocal(Bitmap photo1,Bitmap photo2) {
                 }
             }
         }
+
     }
     public static boolean isNetworkAvailable(Context context) {
         ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -1101,6 +1094,49 @@ private void savepicturestolocal(Bitmap photo1,Bitmap photo2) {
             }
         }
         return 0; // No network or low network strength
+    }
+
+    public void closeApp() {
+        // Close all activities and the app
+        finishAffinity();
+
+    }
+
+    private void deleteAllFilesInFolder(File folder) {
+        if (folder.isDirectory()) {
+            File[] files = folder.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isFile()) {
+                        boolean deleted = file.delete();
+                        if (deleted) {
+                            Log.d("FileDeletion", "Deleted: " + file.getAbsolutePath());
+                        } else {
+                            Log.e("FileDeletion", "Failed to delete: " + file.getAbsolutePath());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    private void deleteSpecificFile(File file) {
+        if (file.isFile()) {
+             file.delete();
+        }
+    }
+    private void deleteExistingMediaStoreEntry(String fileName) {
+        Uri externalContentUri = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+        String selection = MediaStore.Images.Media.DISPLAY_NAME + "=?";
+        String[] selectionArgs = new String[]{fileName};
+
+        try {
+            int deletedRows = getContentResolver().delete(externalContentUri, selection, selectionArgs);
+            if (deletedRows > 0) {
+                Log.d("FileDeletion", "Deleted existing file: " + fileName);
+            }
+        } catch (Exception e) {
+            Log.e("FileDeletion", "Failed to delete existing file: " + e.getMessage());
+        }
     }
 }
 

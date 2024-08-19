@@ -4,16 +4,20 @@ package com.example.tnebsafety;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.View;
@@ -22,7 +26,10 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -50,12 +57,17 @@ import retrofit2.Retrofit;
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE = 1;
+    private ActivityResultLauncher<Intent> manageAllFilesLauncher;
+    private static final int REQUEST_CODE_PERMISSIONS = 101;
+    private ActivityResultLauncher<Intent> manageAllFilesPermissionLauncher;
     private TextView imeiTextView;
    private  String Userid="0" ;
    private String Username="0";
    private String Userrole="0";
     private String Circlename="0";
     private String Sectionname="0";
+    private static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
+    private static final int CAMERA_PERMISSION_REQUEST_CODE = 100;
     private Retrofit retrofit;
     private int photoCount = 0;
     @SuppressLint("MissingPermission")
@@ -66,7 +78,45 @@ public class MainActivity extends AppCompatActivity {
 
         ImageButton clicknavigate=findViewById(R.id.loginButton);
         ImageButton listimages=findViewById(R.id.loginButton3);
+        manageAllFilesLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        if (Environment.isExternalStorageManager()) {
+                            // Manage all files permission granted
+                            Toast.makeText(this, "Manage all files permission granted", Toast.LENGTH_SHORT).show();
+                        } else {
+                            // Manage all files permission not granted
+                            Toast.makeText(this, "Manage all files permission not granted", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                                    }
+        );
+
+        manageAllFilesPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        if (Environment.isExternalStorageManager()) {
+                            // Manage all files access granted, proceed with your functionality
+                          showToast("Permission Granted");
+                        } else {
+                            Toast.makeText(this, "Manage all files access not granted.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+        );
         String folderPath = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS).getAbsolutePath();
+        if (checkLocationPermission()) {
+            checkGPSStatus();
+        }
+        if (!checkStoragePermissions()) {
+            showStoragePermissionAlert(); // Show alert if permissions are not granted
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            checkCameraPermission();
+        }
         String fileName = "data.txt";
         String deletedirectoryPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + "/TNEB SAFETY";
 
@@ -159,13 +209,10 @@ public class MainActivity extends AppCompatActivity {
                File[] files = directory.listFiles();
                if (files != null) {
 
-
                    for (File file : files) {
                        RequestBody requestBody = RequestBody.create(MediaType.parse("image/*"), file);
                        MultipartBody.Part imagePart = MultipartBody.Part.createFormData("image", file.getName(), requestBody);
                        String imagefilename=file.getName();
-
-
 
                        retrofit = RetrofitSingleton.getRetrofitInstance();
                        pendingphotoupload apiService = retrofit.create(pendingphotoupload.class);
@@ -299,5 +346,114 @@ public class MainActivity extends AppCompatActivity {
     private void uploadPhoto(File photoFile){
 
 
+    }
+    private boolean checkStoragePermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            return Environment.isExternalStorageManager();
+        } else {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        }
+    }
+
+    private void requestManageAllFilesAccess() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            manageAllFilesPermissionLauncher.launch(intent);
+        } else {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE},
+                    REQUEST_CODE_PERMISSIONS);
+        }
+    }
+    private void checkGPSStatus() {
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (locationManager != null && !locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            showGPSDisabledAlert();
+        }
+    }
+
+
+    public boolean checkLocationPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    MY_PERMISSIONS_REQUEST_LOCATION);
+            return false;
+        } else {
+            return true;
+        }
+    }
+    private void showGPSDisabledAlert() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Your GPS seems to be disabled. Please enable it for further working of the app.")
+                .setCancelable(false)
+                .setPositiveButton("Enable GPS", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        Intent callGPSSettingIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                        startActivity(callGPSSettingIntent);
+                    }
+                })
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        dialog.cancel();
+                    }
+                });
+        AlertDialog alert = builder.create();
+        alert.show();
+    }
+    private void showStoragePermissionAlert() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Storage permissions are required to access files. Please enable them in the app settings.")
+                .setCancelable(false)
+                .setPositiveButton("Enable Storage Permissions", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int id) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            requestManageAllFilesAccess();
+                        } else {
+                            ActivityCompat.requestPermissions(MainActivity.this,
+                                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE},
+                                    REQUEST_CODE_PERMISSIONS);
+                        }
+                    }
+                })
+                .setNegativeButton("Cancel", (dialog, id) -> dialog.cancel());
+        AlertDialog alert = builder.create();
+        alert.show();
+    }
+    private void showPermissionExplanationDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Camera Permission Needed")
+                .setMessage("This app requires access to the camera to take pictures.")
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        requestCameraPermission();
+                    }
+                })
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                })
+                .create()
+                .show();
+    }
+
+    private void requestCameraPermission() {
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST_CODE);
+    }
+    private void checkCameraPermission() {
+        // Show explanation dialog if necessary, otherwise request the permission
+        if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
+            showPermissionExplanationDialog();
+        } else {
+            // Request permission directly
+            requestCameraPermission();
+        }
     }
 }

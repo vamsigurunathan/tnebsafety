@@ -89,7 +89,7 @@
 
             android:layout_marginTop="50dp"
             android:layout_gravity="center_horizontal"
-            android:text="Designed and Developed by \n GIS Division - IT Wing \n TANGEDCO \n Ver 1.0.2"
+            android:text="Designed and Developed by \n GIS Division - IT Wing \n TANGEDCO \n Ver 1.0.3"
             android:textAlignment="center"
             android:textColor="@android:color/holo_orange_light"
             android:textStyle="bold" />
